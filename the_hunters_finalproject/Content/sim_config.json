@@ -1,0 +1,8 @@
+{
+  "InitialFoxCount": 3,
+  "InitialRabbitCount": 10,
+  "DefaultSpeed": 1.0,
+  "LifetimeKills": 0,
+  "BestSessionKills": 0,
+  "BestSurvivalSeconds": 0.0
+}

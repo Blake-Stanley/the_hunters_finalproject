@@ -6,7 +6,7 @@ namespace the_hunters_finalproject;
 
 public static class ConfigManager
 {
-    private static readonly string FilePath = "sim_config.json";
+    private static readonly string FilePath = Path.Combine("Content", "sim_config.json");
     private static readonly JsonSerializerOptions _writeOptions = new() { WriteIndented = true };
 
     public static SimConfig Load()
@@ -20,6 +20,7 @@ public static class ConfigManager
             }
         }
         catch { }
+
         return new SimConfig();
     }
 

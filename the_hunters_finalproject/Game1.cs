@@ -12,8 +12,8 @@ public class Game1 : Game
     private GraphicsDeviceManager _graphics;
     private SpriteBatch _spriteBatch;
 
-    private const int ScreenWidth  = 800;
-    private const int ScreenHeight = 600;
+    private const int ScreenWidth  = 1600;
+    private const int ScreenHeight = 1000;
 
     // state machine
     private GameState _state = GameState.MainMenu;
@@ -51,6 +51,7 @@ public class Game1 : Game
         _graphics = new GraphicsDeviceManager(this);
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
+        Exiting += (_, _) => PersistStats();
     }
 
     protected override void Initialize()
@@ -74,7 +75,7 @@ public class Game1 : Game
         _bestSessionTime  = _config.BestSurvivalSeconds;
 
         // seed Sydney's menu controls with saved config values
-        _menu = new MainMenu(_font);
+        _menu = new MainMenu(_font, GraphicsDevice);
         _menu.FoxCount    = _config.InitialFoxCount;
         _menu.RabbitCount = _config.InitialRabbitCount;
         _menu.Speed       = _config.DefaultSpeed;
@@ -151,14 +152,15 @@ public class Game1 : Game
         if (Pressed(keys, Keys.OemMinus) || Pressed(keys, Keys.Subtract))
             _speedMult = MathHelper.Clamp(_speedMult - 0.25f, 0.25f, 3f);
 
-        // update foxes first so they can mark rabbits dead this frame
+        // snapshot before foxes run so kills this frame are counted correctly
+        int deadBefore = DeadCount(_rabbits);
+
         foreach (var fox in _foxes)
             fox.Update(gameTime, _rabbits, ScreenWidth, ScreenHeight, _speedMult);
 
-        // count kills produced this frame
-        int deadBefore = DeadCount(_rabbits);
         foreach (var rabbit in _rabbits)
             rabbit.Update(gameTime, _foxes, _fleeModeOn, ScreenWidth, ScreenHeight, _speedMult);
+
         int newKills = DeadCount(_rabbits) - deadBefore;
         _sessionKills += newKills;
         _totalKills   += newKills;
@@ -201,14 +203,19 @@ public class Game1 : Game
         base.Draw(gameTime);
     }
 
-    // persistent stats overlay drawn below Sydney's main menu layout
+    // persistent stats and keybindings drawn below Sydney's menu layout
     private void DrawMenuStats()
     {
-        _spriteBatch.DrawString(_font, $"Best Survival:  {FormatTime(_bestSessionTime)}", new Vector2(200, 360), Color.LightGray);
-        _spriteBatch.DrawString(_font, $"Best Kills:     {_bestSessionKills}",            new Vector2(200, 390), Color.LightGray);
-        _spriteBatch.DrawString(_font, $"Lifetime Kills: {_config.LifetimeKills}",        new Vector2(200, 420), Color.Orange);
-        _spriteBatch.DrawString(_font, "[S] Spawn  [B] Flee  [+/-] Speed  [M] Mute  [R] Reset", new Vector2(60, 470), Color.DarkGray);
+        const float sx = 430f;
+        DrawMenuStr($"Survival:  {FormatTime(_bestSessionTime)}", new Vector2(sx, 755), Color.LightGray,  1.8f);
+        DrawMenuStr($"Kills:     {_bestSessionKills}",            new Vector2(sx, 820), Color.LightGray,  1.8f);
+        DrawMenuStr($"Lifetime:  {_config.LifetimeKills}",        new Vector2(sx, 885), Color.Orange,     1.8f);
+        DrawMenuStr("[S] Spawn  [B] Flee  [+/-] Speed  [M] Mute  [R] Reset",
+                    new Vector2(390, 945), new Color(120, 180, 120), 1.1f);
     }
+
+    private void DrawMenuStr(string text, Vector2 pos, Color color, float scale)
+        => _spriteBatch.DrawString(_font, text, pos, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
 
     private void StartSession()
     {
@@ -240,13 +247,18 @@ public class Game1 : Game
         if (_sessionTime  > _bestSessionTime)  _bestSessionTime  = _sessionTime;
     }
 
-    private void SaveAndExit()
+    private void PersistStats()
     {
         CommitSessionBests();
         if (_bestSessionKills > _config.BestSessionKills)    _config.BestSessionKills    = _bestSessionKills;
         if (_bestSessionTime  > _config.BestSurvivalSeconds) _config.BestSurvivalSeconds = _bestSessionTime;
         _config.LifetimeKills = _totalKills;
         ConfigManager.Save(_config);
+    }
+
+    private void SaveAndExit()
+    {
+        PersistStats();
         Exit();
     }
 
