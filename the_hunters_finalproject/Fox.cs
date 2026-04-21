@@ -51,7 +51,7 @@ public class Fox
     }
 
     public void Update(GameTime gameTime, List<Rabbit> rabbits, int screenWidth,
-        int screenHeight)
+        int screenHeight, float speedMult = 1f)
     {
         if (!IsAlive) return;
 
@@ -59,7 +59,7 @@ public class Fox
         _legPhase += dt * 12f;
         _tailPhase += dt * 2f;
         
-        Rabbit? closestRabbit = null;
+        Rabbit closestRabbit = null;
         float closestDist = float.MaxValue;
         
         // search for the closest rabbit from fox
@@ -85,18 +85,18 @@ public class Fox
             {
                 _velocity = Vector2.Normalize(diff);
             }
-            Position += _velocity * _speedChase * dt;
+            Position += _velocity * _speedChase * speedMult * dt;
 
             // catch rabbit and kill
-            if (Vector2.Distance(Position, closestRabbit.Position) < 5f)
+            if (Vector2.Distance(Position, closestRabbit.Position) < 14f)
             {
                 closestRabbit.IsAlive = false;
             }
         }
         // wander if there's no rabbit around fox
         else
-        { 
-            Position += _velocity * _speedWander * dt;
+        {
+            Position += _velocity * _speedWander * speedMult * dt;
         }
         
         // bounce off edges of the screen

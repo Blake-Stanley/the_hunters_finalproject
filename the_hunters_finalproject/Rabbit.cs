@@ -50,7 +50,7 @@ public class Rabbit
     }
 
     public void Update(GameTime gameTime, List<Fox> foxes, bool fleeModeOn,
-                       int screenWidth, int screenHeight)
+                       int screenWidth, int screenHeight, float speedMult = 1f)
     {
         if (!IsAlive) return;
 
@@ -80,7 +80,7 @@ public class Rabbit
                 _velocity = Vector2.Normalize(fleeForce);
         }
 
-        Position += _velocity * _speed * dt;
+        Position += _velocity * _speed * speedMult * dt;
 
         // bounce off edges of the screen
         if (Position.X < 20f)  { Position.X = 20f;  _velocity.X =  MathF.Abs(_velocity.X); }
