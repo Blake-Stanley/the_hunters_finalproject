@@ -1,6 +1,6 @@
 {
-  "InitialFoxCount": 6,
-  "InitialRabbitCount": 25,
+  "InitialFoxCount": 7,
+  "InitialRabbitCount": 31,
   "DefaultSpeed": 1.0,
   "LifetimeKills": 0,
   "BestSessionKills": 0,
