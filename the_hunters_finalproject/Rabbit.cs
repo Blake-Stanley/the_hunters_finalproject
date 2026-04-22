@@ -18,6 +18,17 @@ public class Rabbit
     private float _earPhase = 0f;
     private bool _facingRight = true;
 
+    // lifespan
+    private float _lifeTimer = 0f;
+    private float _lifespan;
+
+    // reproduction
+    public bool WantsToReproduce = false;
+    private float _reprodCooldown = 0f;
+    private float _reprodInterval;
+    private const float ReprodRange = 50f;
+    private const float ReprodSafeRange = 180f;
+
     // textures
     private Texture2D _bodyTex;
     private Texture2D _earTex;
@@ -28,12 +39,14 @@ public class Rabbit
     private static readonly Vector2 LegOffsetL = new Vector2(-6f, 8f);
     private static readonly Vector2 LegOffsetR = new Vector2(2f, 8f);
 
-    public Rabbit(Texture2D bodyTex, Texture2D earTex, Texture2D legTex, Vector2 position)
+    public Rabbit(Texture2D bodyTex, Texture2D earTex, Texture2D legTex, Vector2 position, float reprodInterval = 12f, float lifespan = 60f)
     {
         _bodyTex = bodyTex;
         _earTex = earTex;
         _legTex = legTex;
         Position = position;
+        _reprodInterval = reprodInterval;
+        _lifespan = lifespan;
 
         // random initial velocity, makes rabbits all move in different directions
         float angle = (float)(Random.Shared.NextDouble() * MathHelper.TwoPi);
@@ -42,19 +55,22 @@ public class Rabbit
 
     // Spawn rabbits at random spots within the scene
     public static Rabbit SpawnRandom(Texture2D bodyTex, Texture2D earTex, Texture2D legTex,
-                                     int screenWidth, int screenHeight)
+                                     int screenWidth, int screenHeight, float reprodInterval = 12f, float lifespan = 60f)
     {
         float x = 40 + (float)Random.Shared.NextDouble() * (screenWidth - 80);
         float y = 40 + (float)Random.Shared.NextDouble() * (screenHeight - 80);
-        return new Rabbit(bodyTex, earTex, legTex, new Vector2(x, y));
+        return new Rabbit(bodyTex, earTex, legTex, new Vector2(x, y), reprodInterval, lifespan);
     }
 
-    public void Update(GameTime gameTime, List<Fox> foxes, bool fleeModeOn,
-                       int screenWidth, int screenHeight, float speedMult = 1f)
+    public void Update(GameTime gameTime, List<Fox> foxes, List<Rabbit> rabbits, bool fleeModeOn,
+                       int screenWidth, int screenHeight, IReadOnlyList<Vector2> grassZones, float speedMult = 1f)
     {
         if (!IsAlive) return;
 
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        _lifeTimer += dt;
+        if (_lifeTimer >= _lifespan) { IsAlive = false; return; }
+
         _legPhase += dt * 8f;
         _earPhase += dt * 3f;
 
@@ -64,7 +80,7 @@ public class Rabbit
         currentAngle += turnAmount * dt;
         _velocity = new Vector2(MathF.Cos(currentAngle), MathF.Sin(currentAngle));
 
-        // flee behavior toggled when foxes nearby
+        // flee from nearby foxes; when safe, drift toward nearest grass zone
         if (fleeModeOn)
         {
             Vector2 fleeForce = Vector2.Zero;
@@ -78,6 +94,12 @@ public class Rabbit
             }
             if (fleeForce.LengthSquared() > 0.01f)
                 _velocity = Vector2.Normalize(fleeForce);
+            else
+                ApplyGrassAttraction(grassZones);
+        }
+        else
+        {
+            ApplyGrassAttraction(grassZones);
         }
 
         Position += _velocity * _speed * speedMult * dt;
@@ -89,6 +111,48 @@ public class Rabbit
         if (Position.Y > screenHeight - 20f) { Position.Y = screenHeight - 20f; _velocity.Y = -MathF.Abs(_velocity.Y); }
 
         _facingRight = _velocity.X >= 0;
+
+        // reproduction: two nearby rabbits with no fox close will spawn an offspring
+        _reprodCooldown -= dt;
+        if (_reprodCooldown <= 0f)
+        {
+            bool foxNearby = false;
+            foreach (var fox in foxes)
+                if (fox.IsAlive && Vector2.Distance(Position, fox.Position) < ReprodSafeRange)
+                { foxNearby = true; break; }
+
+            if (!foxNearby)
+            {
+                foreach (var other in rabbits)
+                {
+                    if (other == this || !other.IsAlive) continue;
+                    if (Vector2.Distance(Position, other.Position) < ReprodRange)
+                    {
+                        WantsToReproduce = true;
+                        _reprodCooldown = _reprodInterval;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private void ApplyGrassAttraction(IReadOnlyList<Vector2> grassZones)
+    {
+        if (grassZones == null || grassZones.Count == 0) return;
+        Vector2 nearest = grassZones[0];
+        float nearestDist = Vector2.Distance(Position, nearest);
+        for (int i = 1; i < grassZones.Count; i++)
+        {
+            float d = Vector2.Distance(Position, grassZones[i]);
+            if (d < nearestDist) { nearestDist = d; nearest = grassZones[i]; }
+        }
+        const float AttractRadius = 120f;
+        if (nearestDist < AttractRadius && nearestDist > 5f)
+        {
+            Vector2 toGrass = Vector2.Normalize(nearest - Position);
+            _velocity = Vector2.Normalize(_velocity + toGrass * 0.15f);
+        }
     }
 
     public void Draw(SpriteBatch spriteBatch)

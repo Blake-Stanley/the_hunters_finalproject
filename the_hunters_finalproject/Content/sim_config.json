@@ -1,8 +1,13 @@
 {
-  "InitialFoxCount": 3,
-  "InitialRabbitCount": 10,
+  "InitialFoxCount": 6,
+  "InitialRabbitCount": 25,
   "DefaultSpeed": 1.0,
   "LifetimeKills": 0,
   "BestSessionKills": 0,
-  "BestSurvivalSeconds": 0.0
+  "BestSurvivalSeconds": 0.0,
+  "FoxHungerLimit": 20.0,
+  "FoxReproInterval": 15.0,
+  "RabbitReproInterval": 12.0,
+  "RabbitLifespan": 60.0,
+  "GrassZoneCount": 5
 }

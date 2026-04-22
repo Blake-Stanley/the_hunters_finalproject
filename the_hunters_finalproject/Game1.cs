@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using System;
 using System.Collections.Generic;
 
 namespace the_hunters_finalproject;
@@ -12,8 +13,10 @@ public class Game1 : Game
     private GraphicsDeviceManager _graphics;
     private SpriteBatch _spriteBatch;
 
-    private const int ScreenWidth  = 1600;
-    private const int ScreenHeight = 1000;
+    private const int ScreenWidth   = 1600;
+    private const int ScreenHeight  = 1000;
+    private const int MaxRabbits    = 3000;
+    private const int MaxFoxes      = 1000;
 
     // state machine
     private GameState _state = GameState.MainMenu;
@@ -29,6 +32,11 @@ public class Game1 : Game
     // entities
     private List<Rabbit> _rabbits = new();
     private List<Fox>    _foxes   = new();
+
+    // grass zones
+    private List<Vector2> _grassZones = new();
+    private Texture2D     _grassZoneTex;
+    private const int     GrassZoneRadius = 70;
 
     // simulation settings
     private bool  _fleeModeOn = true;
@@ -76,9 +84,14 @@ public class Game1 : Game
 
         // seed Sydney's menu controls with saved config values
         _menu = new MainMenu(_font, GraphicsDevice);
-        _menu.FoxCount    = _config.InitialFoxCount;
-        _menu.RabbitCount = _config.InitialRabbitCount;
-        _menu.Speed       = _config.DefaultSpeed;
+        _menu.FoxCount             = _config.InitialFoxCount;
+        _menu.RabbitCount          = _config.InitialRabbitCount;
+        _menu.Speed                = _config.DefaultSpeed;
+        _menu.FoxHungerLimit       = _config.FoxHungerLimit;
+        _menu.FoxReproInterval     = _config.FoxReproInterval;
+        _menu.RabbitReproInterval  = _config.RabbitReproInterval;
+        _menu.RabbitLifespan       = _config.RabbitLifespan;
+        _menu.GrassZoneCount       = _config.GrassZoneCount;
 
         // fox: orange body, lighter tail, darker legs
         _foxBodyTex = MakeTex(24, 16, new Color(210, 110, 40));
@@ -89,6 +102,8 @@ public class Game1 : Game
         _rabbitBodyTex = MakeTex(18, 14, new Color(215, 215, 215));
         _rabbitEarTex  = MakeTex(4,  12, new Color(240, 200, 200));
         _rabbitLegTex  = MakeTex(5,   8, new Color(195, 195, 195));
+
+        _grassZoneTex = MakeCircleTex(GrassZoneRadius, new Color(40, 110, 40, 160));
     }
 
     private Texture2D MakeTex(int w, int h, Color color)
@@ -100,13 +115,37 @@ public class Game1 : Game
         return tex;
     }
 
+    private Texture2D MakeCircleTex(int radius, Color color)
+    {
+        int size = radius * 2;
+        var tex  = new Texture2D(GraphicsDevice, size, size);
+        var data = new Color[size * size];
+        for (int y = 0; y < size; y++)
+        for (int x = 0; x < size; x++)
+        {
+            float dx = x - radius, dy = y - radius;
+            data[y * size + x] = (dx * dx + dy * dy <= (float)radius * radius)
+                ? color : Color.Transparent;
+        }
+        tex.SetData(data);
+        return tex;
+    }
+
     protected override void Update(GameTime gameTime)
     {
         var keys = Keyboard.GetState();
 
         if (Pressed(keys, Keys.Escape))
         {
-            SaveAndExit();
+            if (_state == GameState.MainMenu)
+            {
+                SaveAndExit();
+            }
+            else
+            {
+                CommitSessionBests();
+                _state = GameState.MainMenu;
+            }
             return;
         }
 
@@ -143,8 +182,8 @@ public class Game1 : Game
 
         if (Pressed(keys, Keys.S))
         {
-            _foxes.Add(Fox.SpawnRandom(_foxBodyTex, _foxTailTex, _foxLegTex, ScreenWidth, ScreenHeight));
-            _rabbits.Add(Rabbit.SpawnRandom(_rabbitBodyTex, _rabbitEarTex, _rabbitLegTex, ScreenWidth, ScreenHeight));
+            _foxes.Add(Fox.SpawnRandom(_foxBodyTex, _foxTailTex, _foxLegTex, ScreenWidth, ScreenHeight, _config.FoxHungerLimit, _config.FoxReproInterval));
+            _rabbits.Add(Rabbit.SpawnRandom(_rabbitBodyTex, _rabbitEarTex, _rabbitLegTex, ScreenWidth, ScreenHeight, _config.RabbitReproInterval, _config.RabbitLifespan));
         }
 
         if (Pressed(keys, Keys.OemPlus)  || Pressed(keys, Keys.Add))
@@ -156,14 +195,44 @@ public class Game1 : Game
         int deadBefore = DeadCount(_rabbits);
 
         foreach (var fox in _foxes)
-            fox.Update(gameTime, _rabbits, ScreenWidth, ScreenHeight, _speedMult);
+            fox.Update(gameTime, _rabbits, _foxes, ScreenWidth, ScreenHeight, _speedMult);
 
         foreach (var rabbit in _rabbits)
-            rabbit.Update(gameTime, _foxes, _fleeModeOn, ScreenWidth, ScreenHeight, _speedMult);
+            rabbit.Update(gameTime, _foxes, _rabbits, _fleeModeOn, ScreenWidth, ScreenHeight, _grassZones, _speedMult);
 
         int newKills = DeadCount(_rabbits) - deadBefore;
         _sessionKills += newKills;
         _totalKills   += newKills;
+
+        // prune dead entities so lists stay clean
+        _rabbits.RemoveAll(r => !r.IsAlive);
+        _foxes.RemoveAll(f => !f.IsAlive);
+
+        // rabbit reproduction
+        var newRabbits = new List<Rabbit>();
+        foreach (var rabbit in _rabbits)
+        {
+            if (rabbit.WantsToReproduce)
+            {
+                rabbit.WantsToReproduce = false;
+                newRabbits.Add(Rabbit.SpawnRandom(_rabbitBodyTex, _rabbitEarTex, _rabbitLegTex, ScreenWidth, ScreenHeight, _config.RabbitReproInterval, _config.RabbitLifespan));
+            }
+        }
+        _rabbits.AddRange(newRabbits);
+        if (_rabbits.Count > MaxRabbits) _rabbits.RemoveRange(MaxRabbits, _rabbits.Count - MaxRabbits);
+
+        // fox reproduction
+        var newFoxes = new List<Fox>();
+        foreach (var fox in _foxes)
+        {
+            if (fox.WantsToReproduce)
+            {
+                fox.WantsToReproduce = false;
+                newFoxes.Add(Fox.SpawnRandom(_foxBodyTex, _foxTailTex, _foxLegTex, ScreenWidth, ScreenHeight, _config.FoxHungerLimit, _config.FoxReproInterval));
+            }
+        }
+        _foxes.AddRange(newFoxes);
+        if (_foxes.Count > MaxFoxes) _foxes.RemoveRange(MaxFoxes, _foxes.Count - MaxFoxes);
     }
 
     private static int DeadCount(List<Rabbit> list)
@@ -186,6 +255,12 @@ public class Game1 : Game
         }
         else
         {
+            // grass zones drawn beneath everything
+            _spriteBatch.Begin();
+            foreach (var zone in _grassZones)
+                _spriteBatch.Draw(_grassZoneTex, zone - new Vector2(GrassZoneRadius), Color.White);
+            _spriteBatch.End();
+
             // entities with per-part depth sorting
             _spriteBatch.Begin(sortMode: SpriteSortMode.FrontToBack);
             foreach (var fox in _foxes)      fox.Draw(_spriteBatch);
@@ -206,12 +281,14 @@ public class Game1 : Game
     // persistent stats and keybindings drawn below Sydney's menu layout
     private void DrawMenuStats()
     {
-        const float sx = 430f;
-        DrawMenuStr($"Survival:  {FormatTime(_bestSessionTime)}", new Vector2(sx, 755), Color.LightGray,  1.8f);
-        DrawMenuStr($"Kills:     {_bestSessionKills}",            new Vector2(sx, 820), Color.LightGray,  1.8f);
-        DrawMenuStr($"Lifetime:  {_config.LifetimeKills}",        new Vector2(sx, 885), Color.Orange,     1.8f);
-        DrawMenuStr("[S] Spawn  [B] Flee  [+/-] Speed  [M] Mute  [R] Reset",
-                    new Vector2(390, 945), new Color(120, 180, 120), 1.1f);
+        const float sx  = 375f;
+        float sy = MainMenu.StatsY;
+        float sg = MainMenu.StatsGap;
+        DrawMenuStr($"Survival:  {FormatTime(_bestSessionTime)}", new Vector2(sx, sy),        Color.LightGray, 1.5f);
+        DrawMenuStr($"Kills:     {_bestSessionKills}",            new Vector2(sx, sy + sg),   Color.LightGray, 1.5f);
+        DrawMenuStr($"Lifetime:  {_config.LifetimeKills}",        new Vector2(sx, sy + sg*2), Color.Orange,    1.5f);
+        DrawMenuStr("[S] Spawn  [B] Flee  [+/-] Speed  [M] Mute  [R] Reset  [ESC] Menu",
+                    new Vector2(370, MainMenu.KeybindingsY), new Color(120, 180, 120), 1.05f);
     }
 
     private void DrawMenuStr(string text, Vector2 pos, Color color, float scale)
@@ -220,22 +297,33 @@ public class Game1 : Game
     private void StartSession()
     {
         // pull configuration values the menu may have changed
-        _config.InitialFoxCount    = _menu.FoxCount;
-        _config.InitialRabbitCount = _menu.RabbitCount;
-        _config.DefaultSpeed       = _menu.Speed;
+        _config.InitialFoxCount       = _menu.FoxCount;
+        _config.InitialRabbitCount    = _menu.RabbitCount;
+        _config.DefaultSpeed          = _menu.Speed;
+        _config.FoxHungerLimit        = _menu.FoxHungerLimit;
+        _config.FoxReproInterval      = _menu.FoxReproInterval;
+        _config.RabbitReproInterval   = _menu.RabbitReproInterval;
+        _config.RabbitLifespan        = _menu.RabbitLifespan;
+        _config.GrassZoneCount        = _menu.GrassZoneCount;
 
         _rabbits.Clear();
         _foxes.Clear();
+        _grassZones.Clear();
         _sessionTime  = 0f;
         _sessionKills = 0;
         _speedMult    = _config.DefaultSpeed;
         _fleeModeOn   = true;
         _soundMuted   = !_menu.SoundOn;
 
+        for (int i = 0; i < _config.GrassZoneCount; i++)
+            _grassZones.Add(new Vector2(
+                120 + (float)Random.Shared.NextDouble() * (ScreenWidth  - 240),
+                120 + (float)Random.Shared.NextDouble() * (ScreenHeight - 240)));
+
         for (int i = 0; i < _config.InitialFoxCount; i++)
-            _foxes.Add(Fox.SpawnRandom(_foxBodyTex, _foxTailTex, _foxLegTex, ScreenWidth, ScreenHeight));
+            _foxes.Add(Fox.SpawnRandom(_foxBodyTex, _foxTailTex, _foxLegTex, ScreenWidth, ScreenHeight, _config.FoxHungerLimit, _config.FoxReproInterval));
         for (int i = 0; i < _config.InitialRabbitCount; i++)
-            _rabbits.Add(Rabbit.SpawnRandom(_rabbitBodyTex, _rabbitEarTex, _rabbitLegTex, ScreenWidth, ScreenHeight));
+            _rabbits.Add(Rabbit.SpawnRandom(_rabbitBodyTex, _rabbitEarTex, _rabbitLegTex, ScreenWidth, ScreenHeight, _config.RabbitReproInterval, _config.RabbitLifespan));
 
         _state = GameState.Playing;
     }
