@@ -10,9 +10,11 @@ public class SimConfig
     public float BestSurvivalSeconds { get; set; } = 0f;
 
     // simulation tuning
-    public float FoxHungerLimit { get; set; } = 20f;
-    public float FoxReproInterval { get; set; } = 15f;
+    public float FoxHungerLimit    { get; set; } = 20f;
+    public float FoxReproInterval  { get; set; } = 15f;
+    public float FoxLifespan       { get; set; } = 90f;
     public float RabbitReproInterval { get; set; } = 12f;
-    public float RabbitLifespan { get; set; } = 60f;
-    public int   GrassZoneCount { get; set; } = 5;
+    public float RabbitLifespan    { get; set; } = 60f;
+    public float RabbitHungerLimit { get; set; } = 35f;
+    public int   GrassZoneCount    { get; set; } = 5;
 }

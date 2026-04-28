@@ -27,6 +27,10 @@ public class Fox
     private float _hungerTimer = 0f;
     private float _hungerLimit;
 
+    // lifespan
+    private float _lifeTimer = 0f;
+    private float _lifespan;
+
     // reproduction
     public bool WantsToReproduce = false;
     private float _reprodCooldown = 0f;
@@ -43,7 +47,8 @@ public class Fox
     private static readonly Vector2 LegOffsetL = new Vector2(-7f, 10f);
     private static readonly Vector2 LegOffsetR = new Vector2(7f, 10f);
 
-    public Fox(Texture2D bodyTex, Texture2D tailTex, Texture2D legTex, Vector2 position, float hungerLimit = 20f, float reprodInterval = 15f)
+    public Fox(Texture2D bodyTex, Texture2D tailTex, Texture2D legTex, Vector2 position,
+               float hungerLimit = 20f, float reprodInterval = 15f, float lifespan = 90f)
     {
         _bodyTex = bodyTex;
         _tailTex = tailTex;
@@ -51,6 +56,7 @@ public class Fox
         Position = position;
         _hungerLimit = hungerLimit;
         _reprodInterval = reprodInterval;
+        _lifespan = lifespan;
         
         // random initial velocity, makes rabbits all move in different directions
         float angle = (float)(Random.Shared.NextDouble() * MathHelper.TwoPi);
@@ -59,11 +65,12 @@ public class Fox
     
     // Spawn foxes at random spots within the scene
     public static Fox SpawnRandom(Texture2D bodyTex, Texture2D tailTex, Texture2D legTex,
-        int screenWidth, int screenHeight, float hungerLimit = 20f, float reprodInterval = 15f)
+        int screenWidth, int screenHeight,
+        float hungerLimit = 20f, float reprodInterval = 15f, float lifespan = 90f)
     {
         float x = 40 + (float)Random.Shared.NextDouble() * (screenWidth - 80);
         float y = 40 + (float)Random.Shared.NextDouble() * (screenHeight - 80);
-        return new Fox(bodyTex, tailTex, legTex, new Vector2(x, y), hungerLimit, reprodInterval);
+        return new Fox(bodyTex, tailTex, legTex, new Vector2(x, y), hungerLimit, reprodInterval, lifespan);
     }
 
     public void Update(GameTime gameTime, List<Rabbit> rabbits, List<Fox> foxes, int screenWidth,
@@ -72,6 +79,10 @@ public class Fox
         if (!IsAlive) return;
 
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+
+        _lifeTimer += dt;
+        if (_lifeTimer >= _lifespan) { IsAlive = false; return; }
+
         _legPhase += dt * 12f;
         _tailPhase += dt * 2f;
         
