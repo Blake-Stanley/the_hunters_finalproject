@@ -24,6 +24,8 @@ public class MainMenu
     public const float StatsGap       = 45f;
     public const float KeybindingsY   = 716f;
 
+    private KeyboardState _prevKeys;
+    
     public MainMenu(SpriteFont font, GraphicsDevice gd)
     {
         _font  = font;
@@ -31,7 +33,27 @@ public class MainMenu
         _pixel.SetData(new[] { Color.White });
     }
 
-    public void Update() { }
+    public void Update()
+    {
+        var keys = Keyboard.GetState();
+
+        if (keys.IsKeyDown(Keys.Up) && !_prevKeys.IsKeyDown(Keys.Up))
+            FoxCount++;
+
+        if (keys.IsKeyDown(Keys.Down) && !_prevKeys.IsKeyDown(Keys.Down))
+            FoxCount--;
+
+        if (keys.IsKeyDown(Keys.Right) && !_prevKeys.IsKeyDown(Keys.Right))
+            RabbitCount++;
+
+        if (keys.IsKeyDown(Keys.Left) && !_prevKeys.IsKeyDown(Keys.Left))
+            RabbitCount--;
+
+        if (keys.IsKeyDown(Keys.S) && !_prevKeys.IsKeyDown(Keys.S))
+            SoundOn = !SoundOn;
+
+        _prevKeys = keys;
+    }
 
     public void Draw(SpriteBatch sb)
     {
