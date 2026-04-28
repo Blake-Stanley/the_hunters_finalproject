@@ -15,8 +15,8 @@ public class Game1 : Game
 
     private const int ScreenWidth   = 1600;
     private const int ScreenHeight  = 1000;
-    private const int MaxRabbits    = 3000;
-    private const int MaxFoxes      = 1000;
+    private const int MaxRabbits    = 60;
+    private const int MaxFoxes      = 20;
 
     // state machine
     private GameState _state = GameState.MainMenu;
@@ -67,6 +67,7 @@ public class Game1 : Game
         _graphics.PreferredBackBufferWidth  = ScreenWidth;
         _graphics.PreferredBackBufferHeight = ScreenHeight;
         _graphics.ApplyChanges();
+        _prevKeys = Keyboard.GetState();
         base.Initialize();
     }
 
@@ -138,14 +139,13 @@ public class Game1 : Game
         if (Pressed(keys, Keys.Escape))
         {
             if (_state == GameState.MainMenu)
-            {
                 SaveAndExit();
-            }
             else
             {
                 CommitSessionBests();
                 _state = GameState.MainMenu;
             }
+            _prevKeys = keys;
             return;
         }
 
@@ -215,11 +215,14 @@ public class Game1 : Game
             if (rabbit.WantsToReproduce)
             {
                 rabbit.WantsToReproduce = false;
-                newRabbits.Add(Rabbit.SpawnRandom(_rabbitBodyTex, _rabbitEarTex, _rabbitLegTex, ScreenWidth, ScreenHeight, _config.RabbitReproInterval, _config.RabbitLifespan));
+                if (_rabbits.Count + newRabbits.Count < MaxRabbits)
+                    newRabbits.Add(Rabbit.SpawnRandom(_rabbitBodyTex, _rabbitEarTex, _rabbitLegTex,
+                        ScreenWidth, ScreenHeight, _config.RabbitReproInterval, _config.RabbitLifespan));
+                else
+                    _rabbits[Random.Shared.Next(_rabbits.Count)].IsAlive = false; // cull a random rabbit
             }
         }
         _rabbits.AddRange(newRabbits);
-        if (_rabbits.Count > MaxRabbits) _rabbits.RemoveRange(MaxRabbits, _rabbits.Count - MaxRabbits);
 
         // fox reproduction
         var newFoxes = new List<Fox>();
@@ -228,11 +231,14 @@ public class Game1 : Game
             if (fox.WantsToReproduce)
             {
                 fox.WantsToReproduce = false;
-                newFoxes.Add(Fox.SpawnRandom(_foxBodyTex, _foxTailTex, _foxLegTex, ScreenWidth, ScreenHeight, _config.FoxHungerLimit, _config.FoxReproInterval));
+                if (_foxes.Count + newFoxes.Count < MaxFoxes)
+                    newFoxes.Add(Fox.SpawnRandom(_foxBodyTex, _foxTailTex, _foxLegTex,
+                        ScreenWidth, ScreenHeight, _config.FoxHungerLimit, _config.FoxReproInterval));
+                else
+                    _foxes[Random.Shared.Next(_foxes.Count)].IsAlive = false; // cull a random fox
             }
         }
         _foxes.AddRange(newFoxes);
-        if (_foxes.Count > MaxFoxes) _foxes.RemoveRange(MaxFoxes, _foxes.Count - MaxFoxes);
     }
 
     private static int DeadCount(List<Rabbit> list)

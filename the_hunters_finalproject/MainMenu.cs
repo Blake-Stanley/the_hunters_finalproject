@@ -49,7 +49,7 @@ public class MainMenu
         if (keys.IsKeyDown(Keys.Left) && !_prevKeys.IsKeyDown(Keys.Left))
             RabbitCount--;
 
-        if (keys.IsKeyDown(Keys.S) && !_prevKeys.IsKeyDown(Keys.S))
+        if (keys.IsKeyDown(Keys.M) && !_prevKeys.IsKeyDown(Keys.M))
             SoundOn = !SoundOn;
 
         _prevKeys = keys;

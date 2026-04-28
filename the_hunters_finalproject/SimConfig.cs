@@ -3,7 +3,7 @@ namespace the_hunters_finalproject;
 public class SimConfig
 {
     public int InitialFoxCount { get; set; } = 5;
-    public int InitialRabbitCount { get; set; } = 15;
+    public int InitialRabbitCount { get; set; } = 20;
     public float DefaultSpeed { get; set; } = 1.0f;
     public int LifetimeKills { get; set; } = 0;
     public int BestSessionKills { get; set; } = 0;
