@@ -172,7 +172,7 @@ public class Game1 : Game
     private void UpdatePlaying(GameTime gameTime, KeyboardState keys)
     {
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
-        _sessionTime += dt;
+        _sessionTime += dt * _speedMult;
 
         // keyboard actions (edge-triggered)
         if (Pressed(keys, Keys.P)) _state = GameState.Paused;
@@ -277,7 +277,8 @@ public class Game1 : Game
             _spriteBatch.Begin();
             _hud.Draw(_spriteBatch, _rabbits, _foxes,
                 _sessionKills, _speedMult, _fleeModeOn,
-                _state == GameState.Paused, _soundMuted);
+                _state == GameState.Paused, _soundMuted,
+                _sessionTime, _bestSessionTime);
             _spriteBatch.End();
         }
 
