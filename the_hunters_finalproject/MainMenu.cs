@@ -27,6 +27,19 @@ public class MainMenu
     public const float StatsGap     = 58f;
     public const float KeybindingsY = 845f;
 
+    // default values
+    private const int DEFAULT_FOXES = 3;
+    private const int DEFAULT_RABBITS = 10;
+    private const float DEFAULT_SPEED = 1f;
+    private const bool DEFAULT_SOUND = true;
+    private const float DEFAULT_FOX_HUNGER = 20f;
+    private const float DEFAULT_FOX_REPRO = 15f;
+    private const float DEFAULT_FOX_LIFE = 90f;
+    private const float DEFAULT_RABBIT_REPRO = 12f;
+    private const float DEFAULT_RABBIT_LIFE = 60f;
+    private const float DEFAULT_RABBIT_HUNGER = 35f;
+    private const int DEFAULT_GRASS = 5;
+    
     private KeyboardState _prevKeys;
 
     public MainMenu(SpriteFont font, GraphicsDevice gd)
@@ -45,6 +58,8 @@ public class MainMenu
         if (keys.IsKeyDown(Keys.Right) && !_prevKeys.IsKeyDown(Keys.Right)) RabbitCount++;
         if (keys.IsKeyDown(Keys.Left)  && !_prevKeys.IsKeyDown(Keys.Left))  RabbitCount--;
         if (keys.IsKeyDown(Keys.M)     && !_prevKeys.IsKeyDown(Keys.M))     SoundOn = !SoundOn;
+        if (keys.IsKeyDown(Keys.D) && !_prevKeys.IsKeyDown(Keys.D))
+            ResetToDefaults();
 
         _prevKeys = keys;
     }
@@ -130,6 +145,7 @@ public class MainMenu
         // both clear of HRule at 720
         HRule(sb, 720);
         DrawStr(sb, "Press  ENTER  to  Start", new Vector2(510, 737), Color.Yellow, 1.9f);
+        DrawStr(sb, "Press D to Restore Defaults", new Vector2(480, 780), Color.LightGreen, 1.2f);
         HRule(sb, 820);
         // keybindings hint drawn by Game1.DrawMenuStats() at KeybindingsY
     }
@@ -142,4 +158,22 @@ public class MainMenu
 
     private void HRule(SpriteBatch sb, int y)
         => DrawRect(sb, new Rectangle(100, y, 1440, 2), new Color(55, 115, 55));
+    
+    private void ResetToDefaults()
+    {
+        FoxCount = DEFAULT_FOXES;
+        RabbitCount = DEFAULT_RABBITS;
+        Speed = DEFAULT_SPEED;
+        SoundOn = DEFAULT_SOUND;
+
+        FoxHungerLimit = DEFAULT_FOX_HUNGER;
+        FoxReproInterval = DEFAULT_FOX_REPRO;
+        FoxLifespan = DEFAULT_FOX_LIFE;
+
+        RabbitReproInterval = DEFAULT_RABBIT_REPRO;
+        RabbitLifespan = DEFAULT_RABBIT_LIFE;
+        RabbitHungerLimit = DEFAULT_RABBIT_HUNGER;
+
+        GrassZoneCount = DEFAULT_GRASS;
+    }
 }
