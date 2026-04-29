@@ -14,7 +14,7 @@ Press ENTER to start the simulation
 Controls
 Main Menu
 Arrow Keys — Adjust fox count, rabbit count, and settings
-S — Toggle sound on/off
+M — Toggle sound on/off
 ENTER — Start simulation
 
 In-Game
